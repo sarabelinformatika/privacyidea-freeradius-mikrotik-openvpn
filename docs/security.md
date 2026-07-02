@@ -368,3 +368,15 @@ For security recommendations see:
 ```
 security.md
 ```
+| Security Control    | Status |
+| ------------------- | ------ |
+| HTTPS               | ✅      |
+| MFA                 | ✅      |
+| TOTP                | ✅      |
+| Docker Isolation    | ✅      |
+| Strong Secrets      | ✅      |
+| Least Privilege     | ✅      |
+| Logging             | ✅      |
+| Backup Strategy     | ✅      |
+| Disaster Recovery   | ✅      |
+| NTP Synchronization | ✅      |
