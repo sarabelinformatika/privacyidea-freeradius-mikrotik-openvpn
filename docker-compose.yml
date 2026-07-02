@@ -1,1 +1,77 @@
-version: "3.9"
+services:
+
+  mariadb:
+    image: mariadb:11
+    container_name: mariadb
+    restart: unless-stopped
+
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+
+    volumes:
+      - ./mariadb:/var/lib/mysql
+
+    networks:
+      - mfa
+
+  privacyidea:
+    image: kheeklab/privacyidea:3.13.1-20260601
+    container_name: privacyidea
+
+    restart: unless-stopped
+
+    depends_on:
+      - mariadb
+
+    environment:
+      PI_DB_VENDOR: mysql
+
+      PI_DB_HOST: mariadb
+      PI_DB_PORT: 3306
+
+      PI_DB_NAME: ${MYSQL_DATABASE}
+      PI_DB_USER: ${MYSQL_USER}
+      PI_DB_PASSWORD: ${MYSQL_PASSWORD}
+
+      PI_SECRET_KEY: ${PI_SECRET_KEY}
+      PI_PEPPER: ${PI_PEPPER}
+
+      PI_ADMIN_USER: ${PI_ADMIN_USER}
+      PI_ADMIN_PASSWORD: ${PI_ADMIN_PASSWORD}
+
+    ports:
+      - "8080:8080"
+
+    volumes:
+      - ./privacyidea-users:/privacyidea-users
+
+    networks:
+      - mfa
+
+  freeradius:
+    build: .
+    container_name: freeradius
+
+    restart: unless-stopped
+
+    depends_on:
+      - privacyidea
+
+    ports:
+      - "1812:1812/udp"
+      - "1813:1813/udp"
+
+    volumes:
+      - ./freeradius:/etc/freeradius
+      - /opt/privacyidea:/opt/privacyidea:ro
+
+    networks:
+      - mfa
+
+networks:
+
+  mfa:
+    driver: bridge
