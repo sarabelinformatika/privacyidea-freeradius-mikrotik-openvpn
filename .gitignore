@@ -1,2 +1,17 @@
+# Environment files
 .env
+.env.*
+
+# Logs
 *.log
+
+# Database dumps
+*.sql
+*.sql.gz
+
+# Python cache
+__pycache__/
+
+# IDE
+.vscode/
+.idea/
