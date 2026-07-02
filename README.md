@@ -1,175 +1,179 @@
-# privacyidea-freeradius-mikrotik-openvpn
-Enterprise-ready Multi-Factor Authentication (MFA) for MikroTik OpenVPN using PrivacyIDEA, FreeRADIUS and Docker Compose.
+<p align="center">
+  <img src="images/banner.png" alt="SARABEL Informatika - PrivacyIDEA + FreeRADIUS + MikroTik OpenVPN" width="100%">
+</p>
 
-# MikroTik OpenVPN MFA with PrivacyIDEA + FreeRADIUS
+# PrivacyIDEA + FreeRADIUS + MikroTik OpenVPN
 
-Enterprise-ready Multi-Factor Authentication (MFA) for MikroTik OpenVPN using **PrivacyIDEA** and **FreeRADIUS**.
+> Enterprise Multi-Factor Authentication (MFA) for MikroTik OpenVPN using PrivacyIDEA, FreeRADIUS and Docker.
 
-> **Official companion repository of the SARABEL Informatika technical article.**
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![MikroTik](https://img.shields.io/badge/MikroTik-E3000F?style=for-the-badge)
+![PrivacyIDEA](https://img.shields.io/badge/PrivacyIDEA-009688?style=for-the-badge)
+![FreeRADIUS](https://img.shields.io/badge/FreeRADIUS-005A9C?style=for-the-badge)
+![OpenVPN](https://img.shields.io/badge/OpenVPN-EA7E20?style=for-the-badge)
+![Docker Compose](https://img.shields.io/badge/Docker_Compose-2496ED?style=for-the-badge)
 
 ---
 
-## Overview
+# Project Overview
 
-MikroTik RouterOS provides a stable and reliable OpenVPN server implementation, but **it does not natively support modern Multi-Factor Authentication (MFA)** methods such as TOTP (Google Authenticator, Microsoft Authenticator, Authy, etc.).
+This repository demonstrates how to implement **true Two-Factor Authentication (2FA)** for **MikroTik OpenVPN**, despite RouterOS not providing native TOTP or MFA support.
 
-This repository demonstrates how to extend MikroTik OpenVPN authentication by integrating:
+By integrating:
 
 - PrivacyIDEA
 - FreeRADIUS
 - Docker Compose
-- MariaDB
-- TOTP Authentication
+- MikroTik RouterOS
+- OpenVPN
 
-The result is a secure and centrally managed MFA solution suitable for business environments.
-
----
-
-## Why This Solution?
-
-Native MikroTik authentication supports:
-
-- Local users
-- RADIUS
-- Active Directory (via RADIUS)
-
-However, it **cannot validate Time-based One-Time Passwords (TOTP)** on its own.
-
-By introducing **PrivacyIDEA** and **FreeRADIUS**, MikroTik delegates authentication to a RADIUS server, which validates both:
-
-- Username & Password
-- One-Time Password (OTP)
-
-This enables enterprise-grade two-factor authentication without replacing the existing VPN infrastructure.
+it is possible to provide secure enterprise authentication without purchasing additional proprietary solutions.
 
 ---
 
-## Architecture
+# Why this project?
 
-```text
-                +------------------+
-                | MikroTik Router  |
-                | OpenVPN Server   |
-                +---------+--------+
-                          |
-                     RADIUS Request
-                          |
-                +---------v--------+
-                |   FreeRADIUS     |
-                +---------+--------+
-                          |
-                Authentication
-                          |
-                +---------v--------+
-                |   PrivacyIDEA    |
-                +---------+--------+
-                          |
-                     MariaDB
+RouterOS currently supports:
+
+- Username
+- Password
+- Certificate authentication
+
+However, it **does not provide native Time-based One-Time Password (TOTP) authentication** for OpenVPN users.
+
+This project bridges that gap by using:
+
+```
+OpenVPN Client
+        │
+        ▼
+MikroTik RouterOS
+        │
+        ▼
+FreeRADIUS
+        │
+        ▼
+PrivacyIDEA
+        │
+        ▼
+MariaDB
 ```
 
+The result is enterprise-grade MFA while keeping the existing OpenVPN infrastructure.
+
 ---
 
-## Features
+# Features
 
-- Docker-based deployment
-- PrivacyIDEA 3.x
+- Docker Compose deployment
+- PrivacyIDEA Authentication Server
 - FreeRADIUS integration
+- MikroTik RouterOS configuration
 - TOTP Authentication
-- Google Authenticator compatible
-- Microsoft Authenticator compatible
-- Authy compatible
-- Enterprise-ready architecture
-- Easy backup and migration
-- Secure authentication workflow
+- Centralized user management
+- Secure RADIUS communication
+- OpenVPN compatibility
+- Production-ready architecture
 
 ---
 
-## Repository Contents
+# Repository Structure
 
 ```
-docker-compose.yml
-.env.example
-README.md
-
-privacyidea/
-freeradius/
-mariadb/
-
-examples/
-
-mikrotik/
-
-screenshots/
-
-docs/
+.
+├── docs/
+│   ├── installation.md
+│   ├── configuration.md
+│   ├── troubleshooting.md
+│   ├── security.md
+│   └── faq.md
+│
+├── mikrotik/
+│   ├── radius-client.rsc
+│   ├── firewall.rsc
+│   └── openvpn-server.rsc
+│
+├── images/
+│
+├── screenshots/
+│
+├── docker-compose.yml
+├── .env.example
+├── CHANGELOG.md
+└── README.md
 ```
 
 ---
 
-## Technologies
+# Documentation
+
+| Document | Description |
+|----------|-------------|
+| installation.md | Complete installation guide |
+| configuration.md | Configuration walkthrough |
+| troubleshooting.md | Common issues and solutions |
+| security.md | Security recommendations |
+| faq.md | Frequently Asked Questions |
+
+---
+
+# Security
+
+This repository is intended for educational and production reference purposes.
+
+Before deploying into production:
+
+- Change all default passwords.
+- Generate new secret keys.
+- Restrict RADIUS access.
+- Enable HTTPS.
+- Keep Docker images updated.
+- Protect backups.
+- Monitor authentication logs.
+
+---
+
+# Related Blog Article
+
+A complete implementation guide is available on the SARABEL Informatika blog.
+
+https://sarabelinformatika.hu
+
+---
+
+# Technologies
 
 - MikroTik RouterOS
 - OpenVPN
-- PrivacyIDEA
-- FreeRADIUS
 - Docker
 - Docker Compose
+- PrivacyIDEA
+- FreeRADIUS
 - MariaDB
 - Linux
+- Enterprise Authentication
+- Multi-Factor Authentication (MFA)
 
 ---
 
-## Requirements
+# License
 
-- MikroTik RouterOS
-- Docker Engine
-- Docker Compose
-- Linux Server (Debian recommended)
-- Public DNS (optional)
-- SMTP server (recommended)
+This project is released under the MIT License.
 
 ---
 
-## Security
-
-This repository **does not include production secrets**.
-
-Sensitive information such as:
-
-- API keys
-- Database passwords
-- Secret keys
-- Encryption keys
-
-must be configured through the `.env` file.
-
----
-
-## Related Article
-
-A complete deployment guide is available on the SARABEL Informatika blog:
-
-➡️ https://sarabelinformatika.hu/blog/
-
----
-
-## Disclaimer
-
-This repository is intended for educational and production deployment reference purposes.
-
-Always review and adapt the configuration before deploying it into a production environment.
-
----
-
-## Author
+# Author
 
 **SARABEL Informatika Kft.**
 
-Enterprise IT Infrastructure  
-Virtualization • Backup • Monitoring • Microsoft 365
+Enterprise IT Infrastructure • Virtualization • Backup • Monitoring • Microsoft 365 • Linux
 
 🌐 https://sarabelinformatika.hu
 
----
+LinkedIn:
 
-If this repository helped you, consider giving it a ⭐.
+https://www.linkedin.com/in/sarabel-informatika-kft-8041003a1/
+
+GitHub:
+
+https://github.com/sarabelinformatika
