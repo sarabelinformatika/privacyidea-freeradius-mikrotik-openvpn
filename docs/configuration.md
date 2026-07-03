@@ -6,17 +6,17 @@
 
 # Overview
 
-After completing the installation, the following components must be configured:
+After completing the installation, configure the following components in the recommended order:
 
 1. MariaDB
 2. PrivacyIDEA
 3. FreeRADIUS
 4. MikroTik RouterOS
 5. OpenVPN
-6. MFA Token Enrollment
+6. TOTP Token Enrollment
 7. Authentication Testing
 
-This guide follows the recommended deployment sequence.
+Following this sequence minimizes configuration issues and simplifies troubleshooting.
 
 ---
 
@@ -28,8 +28,12 @@ OpenVPN Client
         ▼
 MikroTik RouterOS
         │
+     RADIUS
+        │
         ▼
 FreeRADIUS
+        │
+    Perl Module
         │
         ▼
 PrivacyIDEA
@@ -38,23 +42,34 @@ PrivacyIDEA
 MariaDB
 ```
 
-Authentication process:
+Authentication sequence:
 
-1. The user connects to the MikroTik OpenVPN server.
+1. The VPN client connects to the MikroTik OpenVPN server.
 2. MikroTik forwards the authentication request to FreeRADIUS.
-3. FreeRADIUS validates the request through PrivacyIDEA.
-4. PrivacyIDEA verifies:
+3. FreeRADIUS passes the authentication request to PrivacyIDEA.
+4. PrivacyIDEA validates:
    - Username
    - Password
-   - TOTP code
-5. If all checks succeed, an Access-Accept response is returned.
-6. MikroTik establishes the VPN connection.
+   - TOTP Token
+5. PrivacyIDEA returns Access-Accept or Access-Reject.
+6. FreeRADIUS returns the response to MikroTik.
+7. MikroTik establishes or rejects the VPN connection.
+
+---
+
+# Configuration Files
+
+| Component | File |
+|-----------|------|
+| Docker Compose | docker-compose.yml |
+| Environment Variables | .env |
+| FreeRADIUS Clients | freeradius/clients.conf |
+| MikroTik RADIUS | mikrotik/radius-client.rsc |
+| MikroTik OpenVPN | mikrotik/openvpn-server.rsc |
 
 ---
 
 # Configuration Order
-
-Always configure the environment in the following order:
 
 | Step | Component |
 |------|-----------|
@@ -63,10 +78,26 @@ Always configure the environment in the following order:
 | 3 | FreeRADIUS |
 | 4 | MikroTik RouterOS |
 | 5 | OpenVPN |
-| 6 | MFA Token Enrollment |
+| 6 | Token Enrollment |
 | 7 | Authentication Testing |
 
-Changing this order may lead to authentication failures.
+---
+
+# Verify Docker Stack
+
+Before configuring any component, verify that the complete Docker stack is running.
+
+```bash
+docker compose ps
+```
+
+Expected services:
+
+- mariadb
+- privacyidea
+- freeradius
+
+All services should report a running state.
 
 ---
 
@@ -74,37 +105,25 @@ Changing this order may lead to authentication failures.
 
 MariaDB is used as the backend database for PrivacyIDEA.
 
-Verify that the container is running:
-
-```bash
-docker ps
-```
-
-Expected container:
-
-```
-mariadb
-```
-
-Check database connectivity:
+Verify database connectivity.
 
 ```bash
 docker exec -it mariadb mysql -u root -p
 ```
 
-Verify that the PrivacyIDEA database exists:
+Verify that the PrivacyIDEA database exists.
 
 ```sql
 SHOW DATABASES;
 ```
 
-Expected output:
+Expected:
 
 ```sql
 privacyidea
 ```
 
-Exit the MariaDB shell:
+Exit MariaDB.
 
 ```sql
 exit
@@ -114,86 +133,71 @@ exit
 
 # Configure PrivacyIDEA
 
-Open the PrivacyIDEA web interface:
+Open the PrivacyIDEA web interface.
+
+Default Docker deployment:
 
 ```
-https://YOUR-SERVER-IP
+http://SERVER-IP:8080
 ```
 
-or
+Reverse Proxy deployment:
 
 ```
-https://YOUR-DOMAIN
+https://your-domain.example
 ```
 
-Complete the initial setup wizard.
+If you are deploying the solution in production, using a reverse proxy (for example Nginx Proxy Manager) with HTTPS is strongly recommended.
 
-Create the administrator account.
+Complete the initial configuration.
 
-After logging in:
+Configure:
 
-- Configure the Realm
-- Create the Resolver
-- Synchronize users
-- Enable TOTP support
+- Administrator account
+- Realm
+- Resolver
+- User synchronization
+- Policies
+- TOTP support
 
-At this stage, do **not** enroll tokens yet.
-
-Token enrollment is covered later in this guide.
+Verify that users are successfully imported before continuing.
 
 ---
 
-# Best Practices
+# Supported Authenticator Applications
 
-During configuration:
+PrivacyIDEA supports all RFC-compliant TOTP applications, including:
 
-- Use HTTPS only.
-- Enable automatic backups.
-- Use strong administrator passwords.
-- Synchronize system time using NTP.
-- Restrict administrative access.
-- Store secret keys securely.
+- Google Authenticator
+- Microsoft Authenticator
+- Aegis Authenticator
+- FreeOTP
+- Authy (where supported)
 
 ---
 
 # Configure FreeRADIUS
 
-FreeRADIUS acts as the authentication gateway between MikroTik RouterOS and PrivacyIDEA.
+FreeRADIUS forwards authentication requests from MikroTik RouterOS to PrivacyIDEA.
 
-All authentication requests received from MikroTik are forwarded to PrivacyIDEA for verification.
-
-The authentication workflow is:
+Configuration files included in this repository:
 
 ```
-MikroTik
-     │
-     ▼
-FreeRADIUS
-     │
-     ▼
-PrivacyIDEA
-     │
-     ▼
-MariaDB
+freeradius/
 ```
 
----
+Important files:
 
-## Verify the FreeRADIUS Container
+- clients.conf
+- README.md
 
-Ensure the container is running.
-
-```bash
-docker ps
-```
-
-Expected output:
+Configuration details are documented in:
 
 ```
-freeradius
+docs/freeradius-integration.md
 ```
 
-Review the container logs.
+Verify the container.
 
 ```bash
 docker logs freeradius
@@ -203,118 +207,45 @@ The service should start without errors.
 
 ---
 
-## Configure RADIUS Clients
-
-Each MikroTik router must be defined as a trusted RADIUS client.
-
-Typical parameters include:
-
-- Client IP Address
-- Shared Secret
-- Authentication Port
-- Accounting Port
-
-Only trusted network devices should be allowed to communicate with the RADIUS server.
-
----
-
-## Configure PrivacyIDEA Authentication
-
-FreeRADIUS authenticates users through PrivacyIDEA.
-
-The authentication module should:
-
-- Validate username
-- Validate password
-- Validate TOTP token
-- Return Access-Accept or Access-Reject
-
-No user credentials should be stored inside FreeRADIUS.
-
-PrivacyIDEA remains the authoritative authentication source.
-
----
-
-## Authentication Flow
-
-```
-VPN User
-
-↓
-
-MikroTik RouterOS
-
-↓
-
-FreeRADIUS
-
-↓
-
-PrivacyIDEA
-
-↓
-
-MariaDB
-
-↓
-
-Access-Accept
-```
-
----
-
 # Configure MikroTik RouterOS
 
-Open WinBox or connect using SSH.
-
-Navigate to:
+Example MikroTik configuration files are included.
 
 ```
-Radius
+mikrotik/
 ```
 
-Create a new RADIUS client.
+Available examples:
 
-Typical parameters include:
+- radius-client.rsc
+- openvpn-server.rsc
+- firewall.rsc
+- ppp-profile.rsc
 
-- Service: PPP
-- Address: FreeRADIUS Server
-- Authentication Port: 1812
-- Accounting Port: 1813
-- Shared Secret: Strong Password
+Import the configuration snippets and adjust:
 
-Verify that the router can communicate with the FreeRADIUS server before continuing.
+- IP addresses
+- Shared Secret
+- Certificates
+- DNS servers
+
+to match your environment.
 
 ---
 
 # Configure OpenVPN
 
-Enable OpenVPN Server.
+Configure the MikroTik OpenVPN server.
 
-Configure:
+Verify:
 
 - Authentication
 - Encryption
 - Certificates
-- User Profiles
+- PPP Profile
+- RADIUS Authentication
 
-Ensure OpenVPN authentication uses the configured RADIUS server.
-
----
-
-# Configure PrivacyIDEA
-
-Log in as Administrator.
-
-Complete the following tasks:
-
-- Create Realm
-- Configure Resolver
-- Import Users
-- Create Policies
-- Enable TOTP Authentication
-
-Verify that users are visible before continuing.
+Ensure that OpenVPN authentication uses the configured FreeRADIUS server.
 
 ---
 
@@ -322,23 +253,39 @@ Verify that users are visible before continuing.
 
 Enroll a TOTP token for each user.
 
-Supported applications include:
+PrivacyIDEA generates a QR code that can be scanned using any supported authenticator application.
 
-- Google Authenticator
-- Microsoft Authenticator
-- Authy
-- FreeOTP
-- Aegis
+Verify successful enrollment before testing VPN authentication.
 
-Scan the generated QR code.
+---
 
-Verify successful token enrollment.
+# Password Format
+
+Depending on the configured PrivacyIDEA policy, users may authenticate using:
+
+```
+Password + OTP
+```
+
+Example:
+
+```
+MyPassword123456
+```
+
+or
+
+```
+Password123456789
+```
+
+Refer to your PrivacyIDEA policy configuration.
 
 ---
 
 # Authentication Test
 
-Test the complete authentication chain.
+Verify the complete authentication workflow.
 
 ```
 VPN Client
@@ -349,41 +296,85 @@ Username
 
 ↓
 
-Password
+Password + OTP
 
 ↓
 
-OTP
+MikroTik
+
+↓
+
+FreeRADIUS
+
+↓
+
+PrivacyIDEA
+
+↓
+
+Access-Accept
 
 ↓
 
 VPN Connected
 ```
 
-Successful authentication confirms:
+A successful login confirms correct communication between:
 
-- Docker environment
+- Docker
 - MariaDB
 - PrivacyIDEA
 - FreeRADIUS
-- MikroTik
+- MikroTik RouterOS
 - OpenVPN
-
-are correctly configured.
 
 ---
 
 # Validation Checklist
 
-Before deploying into production verify:
+Before moving to production verify:
 
 - Docker containers are running.
-- PrivacyIDEA is reachable.
 - MariaDB is healthy.
+- PrivacyIDEA is reachable.
 - FreeRADIUS starts without errors.
-- MikroTik reaches the RADIUS server.
+- Perl authentication module is working.
+- MikroTik communicates with the RADIUS server.
 - Users are synchronized.
 - TOTP authentication succeeds.
-- VPN connection is established.
+- VPN authentication succeeds.
+- HTTPS is configured.
+- Time synchronization is correct.
+- Backups are configured.
+- Monitoring is enabled.
 
-All items should be successfully completed before allowing production users to connect.
+---
+
+# Production Checklist
+
+Before allowing production users to connect:
+
+- Administrator password changed
+- Default credentials removed
+- Shared Secret replaced
+- HTTPS enabled
+- Firewall verified
+- Docker images updated
+- Database backups configured
+- OTP enrollment completed
+- VPN authentication tested
+- Disaster recovery tested
+- Monitoring configured
+- Authentication logs reviewed
+
+---
+
+# Next Step
+
+Continue with:
+
+```
+docs/freeradius-integration.md
+```
+
+to understand how FreeRADIUS communicates with PrivacyIDEA and how the Perl authentication module is integrated into the authentication workflow.
