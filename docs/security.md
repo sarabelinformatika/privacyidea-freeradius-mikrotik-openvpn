@@ -8,25 +8,41 @@
 
 Even a correctly deployed environment may experience configuration issues.
 
-This guide describes the most common problems encountered during deployment and explains how to diagnose and resolve them.
+This guide describes the most common deployment problems, explains how to diagnose them and provides recommended solutions.
 
 ---
 
-# Verify Container Status
+# Quick Diagnostics
 
-Always begin by checking whether all containers are running.
+Most deployment issues can be identified using the following commands.
 
 ```bash
-docker ps
+docker compose ps
+docker compose logs privacyidea
+docker compose logs freeradius
+docker compose logs mariadb
+docker compose config
 ```
 
-Expected containers:
+If all containers are running without errors, continue with the component-specific troubleshooting sections below.
+
+---
+
+# Verify Docker Stack
+
+Always begin by verifying that all services are running.
+
+```bash
+docker compose ps
+```
+
+Expected services:
 
 - mariadb
 - privacyidea
 - freeradius
 
-If any container is missing, inspect the logs.
+If any service is missing or exited unexpectedly, inspect its logs.
 
 ---
 
@@ -35,19 +51,19 @@ If any container is missing, inspect the logs.
 PrivacyIDEA
 
 ```bash
-docker logs privacyidea
+docker compose logs privacyidea
 ```
 
 FreeRADIUS
 
 ```bash
-docker logs freeradius
+docker compose logs freeradius
 ```
 
 MariaDB
 
 ```bash
-docker logs mariadb
+docker compose logs mariadb
 ```
 
 ---
@@ -56,31 +72,38 @@ docker logs mariadb
 
 ## Symptoms
 
-Container exits immediately after startup.
+The container exits immediately after startup.
 
 ## Possible Causes
 
 - Missing environment variables
-- Invalid configuration
-- Missing database connection
+- Invalid database configuration
 - Invalid secret keys
+- Database unavailable
 
-## Solution
-
-Verify the environment configuration.
+## Verify
 
 ```bash
-cat .env
+docker compose logs privacyidea
 ```
 
-Confirm that the following variables exist:
+Check that the following variables exist in the `.env` file:
 
 ```
 PI_SECRET_KEY
 PI_PEPPER
+PI_DB_HOST
+MYSQL_DATABASE
+MYSQL_USER
+MYSQL_PASSWORD
 ```
 
-Both values must be unique and sufficiently long.
+Restart the stack after making changes.
+
+```bash
+docker compose down
+docker compose up -d
+```
 
 ---
 
@@ -94,13 +117,7 @@ Without it, the application cannot start.
 
 ## Solution
 
-Generate a random value.
-
-Example:
-
-```
-PI_SECRET_KEY=<YOUR_SECRET_KEY>
-```
+Generate a secure random value and update the `.env` file.
 
 Restart the containers.
 
@@ -119,38 +136,55 @@ The PEPPER value is required to securely hash sensitive information.
 
 ## Solution
 
-Generate a strong random value.
+Generate a secure random value.
 
-Example:
+Update the `.env` file and restart the containers.
 
+---
+
+# PrivacyIDEA Cannot Connect to MariaDB
+
+## Symptoms
+
+PrivacyIDEA starts but reports database connection errors.
+
+## Verify
+
+```bash
+docker compose logs privacyidea
 ```
-PI_PEPPER=<YOUR_PEPPER>
+
+Confirm:
+
+- PI_DB_HOST
+- MYSQL_DATABASE
+- MYSQL_USER
+- MYSQL_PASSWORD
+
+Verify MariaDB is running.
+
+```bash
+docker compose logs mariadb
 ```
 
-Restart Docker.
+Both containers must be connected to the same Docker network.
 
 ---
 
 # MariaDB Connection Failed
 
-## Symptoms
-
-PrivacyIDEA reports database connection errors.
-
 ## Verify
 
 ```bash
-docker logs mariadb
+docker compose logs mariadb
 ```
 
 Check:
 
+- Database initialization
+- User creation
 - Database name
-- Username
-- Password
-- Hostname
-
-Ensure that the values match the `.env` configuration.
+- Authentication errors
 
 ---
 
@@ -169,50 +203,82 @@ docker network ls
 Inspect the project network.
 
 ```bash
-docker network inspect bridge
+docker network inspect mfa
 ```
 
-If custom networks are used, verify that every service is connected correctly.
+Confirm that all containers are attached to the same Docker network.
 
 ---
 
-# FreeRADIUS Access-Reject
-
-## Symptoms
-
-Authentication always fails.
-
-## Possible Causes
-
-- Incorrect shared secret
-- Client IP mismatch
-- PrivacyIDEA unavailable
-- Invalid credentials
+# FreeRADIUS Does Not Start
 
 ## Verify
 
 ```bash
-docker logs freeradius
+docker compose logs freeradius
 ```
 
-Review authentication requests and rejection reasons.
+Check for:
+
+- Syntax errors
+- Missing Perl dependencies
+- Missing configuration files
+- Permission issues
+
+---
+
+# FreeRADIUS Cannot Reach PrivacyIDEA
+
+## Symptoms
+
+Authentication requests are received but always rejected.
+
+## Verify
+
+```bash
+docker compose logs freeradius
+```
+
+Confirm:
+
+- Perl module loaded
+- PrivacyIDEA reachable
+- HTTP communication successful
+
+---
+
+# FreeRADIUS Returns Access-Reject
+
+## Possible Causes
+
+- Incorrect RADIUS shared secret
+- MikroTik client IP mismatch
+- Invalid credentials
+- PrivacyIDEA unavailable
+- Invalid TOTP
+
+Verify:
+
+- Shared Secret
+- Client IP
+- PrivacyIDEA logs
+- FreeRADIUS logs
 
 ---
 
 # MikroTik Cannot Reach FreeRADIUS
 
-## Verify Connectivity
+Verify:
 
-Ping the RADIUS server.
-
-Check:
-
-- IP address
-- Firewall
+- FreeRADIUS IP address
 - UDP Port 1812
 - UDP Port 1813
+- Shared Secret
+- Service = PPP
+- MikroTik Firewall
+- Docker Firewall
 
-Verify the shared secret on both systems.
+Test basic connectivity using ping if ICMP is allowed.
 
 ---
 
@@ -223,24 +289,42 @@ Verify the shared secret on both systems.
 - Incorrect username
 - Incorrect password
 - Invalid OTP
-- RADIUS communication failure
+- FreeRADIUS unavailable
 - PrivacyIDEA unavailable
+- Incorrect RADIUS configuration
 
-Review:
+Review logs from:
 
-- MikroTik logs
-- FreeRADIUS logs
-- PrivacyIDEA logs
+- MikroTik
+- FreeRADIUS
+- PrivacyIDEA
 
-Always identify which component rejected the authentication.
+Identify which component rejected the authentication.
+
+---
+
+# Invalid Password Format
+
+Some PrivacyIDEA policies require users to concatenate the password and OTP.
+
+Example:
+
+```
+MyPassword123456
+```
+
+instead of:
+
+```
+Password
+123456
+```
+
+Verify the configured authentication policy.
 
 ---
 
 # Invalid TOTP
-
-## Symptoms
-
-Authentication fails despite the correct password.
 
 ## Verify
 
@@ -251,7 +335,7 @@ Check:
 - Token enrollment
 - Time zone configuration
 
-TOTP requires accurate time synchronization.
+TOTP authentication requires accurate time synchronization.
 
 ---
 
@@ -260,10 +344,22 @@ TOTP requires accurate time synchronization.
 Possible causes:
 
 - Browser cache
-- Incorrect hostname
-- Invalid HTTPS configuration
+- Invalid hostname
+- Incorrect HTTPS configuration
+- Corrupted QR code
 
-Generate a new token and verify the QR code again.
+Generate a new token and try again.
+
+---
+
+# Reverse Proxy Issues
+
+If PrivacyIDEA is published through Nginx Proxy Manager or another reverse proxy, verify:
+
+- HTTPS enabled
+- Correct backend target
+- DNS records
+- SSL certificate validity
 
 ---
 
@@ -273,26 +369,32 @@ Verify:
 
 - Certificate validity
 - Hostname
-- Reverse Proxy
+- Reverse Proxy configuration
 - DNS records
 
-Modern browsers reject invalid certificates.
+Modern browsers reject invalid or expired certificates.
 
 ---
 
 # Docker Compose Validation
 
-Validate the configuration.
+Validate the complete Docker configuration.
 
 ```bash
 docker compose config
 ```
 
-Correct any reported errors before restarting the environment.
+Update Docker images if necessary.
+
+```bash
+docker compose pull
+```
+
+Correct all reported configuration errors before restarting the environment.
 
 ---
 
-# Restart All Services
+# Restart the Environment
 
 ```bash
 docker compose down
@@ -303,7 +405,7 @@ docker compose up -d
 
 # Verify Authentication Flow
 
-Successful authentication follows this sequence:
+Successful authentication follows this sequence.
 
 ```
 VPN Client
@@ -333,7 +435,27 @@ Access-Accept
 VPN Connected
 ```
 
-If authentication stops at any stage, inspect the logs of the failing component.
+If authentication stops at any stage, inspect the logs of the corresponding component.
+
+---
+
+# Environment Health Checklist
+
+| Component | Verified |
+|------------|----------|
+| Docker Containers | ✅ |
+| MariaDB | ✅ |
+| PrivacyIDEA | ✅ |
+| FreeRADIUS | ✅ |
+| Perl Module | ✅ |
+| MikroTik RouterOS | ✅ |
+| OpenVPN | ✅ |
+| HTTPS | ✅ |
+| MFA | ✅ |
+| TOTP | ✅ |
+| NTP Synchronization | ✅ |
+| Backups | ✅ |
+| Monitoring | ✅ |
 
 ---
 
@@ -342,41 +464,39 @@ If authentication stops at any stage, inspect the logs of the failing component.
 - Keep Docker images updated.
 - Synchronize system time using NTP.
 - Backup MariaDB regularly.
-- Use strong shared secrets.
 - Protect the `.env` file.
+- Use strong RADIUS shared secrets.
+- Enable HTTPS.
 - Monitor authentication logs.
 - Test configuration changes before production deployment.
 
 ---
 
-# Additional Documentation
+# Still Having Problems?
 
-For installation instructions see:
+If all configuration files match this repository and authentication still fails:
 
-```
-installation.md
-```
+- Enable FreeRADIUS debug logging.
+- Review PrivacyIDEA logs.
+- Verify Docker networking.
+- Verify MikroTik RADIUS configuration.
+- Check system time synchronization.
+- Confirm the RADIUS shared secret matches on both systems.
 
-For configuration details see:
+Most deployment issues are caused by:
 
-```
-configuration.md
-```
+- Incorrect RADIUS shared secret
+- Time synchronization problems
+- Incorrect Docker environment variables
+- Invalid PrivacyIDEA policies
+- Firewall configuration
 
-For security recommendations see:
+---
 
-```
-security.md
-```
-| Security Control    | Status |
-| ------------------- | ------ |
-| HTTPS               | ✅      |
-| MFA                 | ✅      |
-| TOTP                | ✅      |
-| Docker Isolation    | ✅      |
-| Strong Secrets      | ✅      |
-| Least Privilege     | ✅      |
-| Logging             | ✅      |
-| Backup Strategy     | ✅      |
-| Disaster Recovery   | ✅      |
-| NTP Synchronization | ✅      |
+# Related Documentation
+
+- installation.md
+- configuration.md
+- freeradius-integration.md
+- security.md
+- faq.md
