@@ -1,6 +1,6 @@
 # Installation Guide
 
-> Enterprise deployment guide for implementing Multi-Factor Authentication (MFA) on MikroTik OpenVPN using PrivacyIDEA, FreeRADIUS and Docker Compose.
+> Enterprise deployment guide for implementing Multi-Factor Authentication (MFA) for MikroTik OpenVPN using PrivacyIDEA, FreeRADIUS and Docker Compose.
 
 ---
 
@@ -8,19 +8,17 @@
 
 This project is intended for educational purposes, proof-of-concept environments and production reference implementations.
 
-Although the configuration has been designed following industry best practices, every production environment is unique. Always validate the complete solution in a non-production environment before deployment.
+Although the configuration follows industry best practices, every production environment is unique. Always validate the complete solution in a non-production environment before deployment.
 
 ---
 
 # Project Overview
 
-MikroTik RouterOS currently supports username/password authentication and certificate-based authentication for OpenVPN.
+MikroTik RouterOS supports username/password authentication and certificate-based authentication for OpenVPN.
 
-Native support for Time-based One-Time Passwords (TOTP), HOTP or modern Multi-Factor Authentication is not available.
+However, RouterOS does **not** provide native support for modern Multi-Factor Authentication (MFA), such as Time-based One-Time Passwords (TOTP).
 
-This project extends the authentication process by introducing a dedicated RADIUS authentication layer using FreeRADIUS and PrivacyIDEA.
-
-The solution enables enterprise-grade MFA while preserving the existing OpenVPN infrastructure.
+This project extends the authentication workflow by introducing a dedicated RADIUS authentication layer using FreeRADIUS and PrivacyIDEA, enabling enterprise-grade MFA while preserving the existing OpenVPN infrastructure.
 
 ---
 
@@ -28,31 +26,33 @@ The solution enables enterprise-grade MFA while preserving the existing OpenVPN 
 
 ```
                    +----------------------+
-                   | OpenVPN Client       |
+                   |    OpenVPN Client    |
                    +----------+-----------+
                               |
                               |
                               ▼
                    +----------------------+
-                   | MikroTik RouterOS    |
-                   | OpenVPN Server       |
+                   |  MikroTik RouterOS   |
+                   |    OpenVPN Server    |
                    +----------+-----------+
                               |
                     RADIUS Authentication
                               |
                               ▼
                    +----------------------+
-                   | FreeRADIUS           |
+                   |     FreeRADIUS       |
+                   +----------+-----------+
+                              |
+                         Perl Module
+                              |
+                              ▼
+                   +----------------------+
+                   |    PrivacyIDEA       |
                    +----------+-----------+
                               |
                               ▼
                    +----------------------+
-                   | PrivacyIDEA          |
-                   +----------+-----------+
-                              |
-                              ▼
-                   +----------------------+
-                   | MariaDB              |
+                   |      MariaDB         |
                    +----------------------+
 ```
 
@@ -88,10 +88,11 @@ The solution enables enterprise-grade MFA while preserving the existing OpenVPN 
 
 | Port | Protocol | Purpose |
 |------|----------|---------|
-| 443 | TCP | PrivacyIDEA Web Interface |
+| 443 | TCP | PrivacyIDEA Web Interface (Reverse Proxy) |
+| 8080 | TCP | PrivacyIDEA Container |
 | 1812 | UDP | RADIUS Authentication |
 | 1813 | UDP | RADIUS Accounting (optional) |
-| 1194 | TCP or UDP* | OpenVPN Server |
+| 1194 | TCP or UDP | OpenVPN Server |
 
 > **Note**
 >
@@ -101,7 +102,7 @@ The solution enables enterprise-grade MFA while preserving the existing OpenVPN 
 
 # Prerequisites
 
-Before installing the solution ensure that:
+Before installing the solution, ensure that:
 
 - Debian is fully updated.
 - Docker Engine is installed.
@@ -111,6 +112,18 @@ Before installing the solution ensure that:
 - Internet connectivity is available.
 - NTP time synchronization is configured.
 - Required firewall ports are opened.
+
+---
+
+# Network Requirements
+
+Verify that:
+
+- MikroTik can reach the FreeRADIUS server.
+- FreeRADIUS can communicate with PrivacyIDEA.
+- PrivacyIDEA can connect to MariaDB.
+- Docker containers can communicate through the Docker bridge network.
+- DNS resolution works correctly if hostnames are used.
 
 ---
 
@@ -126,13 +139,13 @@ reboot
 
 # Install Docker
 
-Install Docker using the official Docker installation script.
+Install Docker Engine and Docker Compose using the official Docker installation guide for your Linux distribution.
 
-```bash
-curl -fsSL https://get.docker.com | sh
-```
+Official documentation:
 
-Verify installation.
+https://docs.docker.com/engine/install/
+
+Verify the installation.
 
 ```bash
 docker version
@@ -180,7 +193,7 @@ cd privacyidea-freeradius-mikrotik-openvpn
 
 # Configure Environment Variables
 
-Create a production configuration file.
+Create the production configuration file.
 
 ```bash
 cp .env.example .env
@@ -196,10 +209,12 @@ At minimum configure:
 
 - PI_SECRET_KEY
 - PI_PEPPER
-- Database username
-- Database password
-- Database name
-- Time zone
+- PI_ADMIN_USER
+- PI_ADMIN_PASSWORD
+- MYSQL_DATABASE
+- MYSQL_USER
+- MYSQL_PASSWORD
+- MYSQL_ROOT_PASSWORD
 
 Never commit the `.env` file to GitHub.
 
@@ -207,29 +222,29 @@ Never commit the `.env` file to GitHub.
 
 # Start the Environment
 
-Launch all containers.
+Launch the complete Docker stack.
 
 ```bash
 docker compose up -d
 ```
 
-The first startup may take several minutes while Docker downloads the required images.
+The first startup may take several minutes while Docker downloads and initializes the required images.
 
 ---
 
 # Verify Running Containers
 
 ```bash
-docker ps
+docker compose ps
 ```
 
-Expected containers:
+Expected services:
 
 - mariadb
 - privacyidea
 - freeradius
 
-All containers should report a healthy or running state.
+All services should report a running state.
 
 ---
 
@@ -237,11 +252,13 @@ All containers should report a healthy or running state.
 
 Open your browser.
 
+If you are using the default Docker deployment:
+
 ```
-https://SERVER-IP
+http://SERVER-IP:8080
 ```
 
-or
+If you are using a reverse proxy:
 
 ```
 https://your-domain.example
@@ -251,15 +268,27 @@ The PrivacyIDEA login page should be displayed.
 
 ---
 
+# Initial Administrator
+
+The first administrator account is created using the credentials defined in the `.env` file.
+
+After the initial login:
+
+- Verify administrator access.
+- Change the administrator password if default credentials were used.
+- Create additional administrative accounts if required.
+
+---
+
 # Verify FreeRADIUS
 
-View the logs.
+Check the container logs.
 
 ```bash
 docker logs freeradius
 ```
 
-The log should indicate successful startup without errors.
+The logs should indicate a successful startup without errors.
 
 ---
 
@@ -273,13 +302,25 @@ Ensure the database initialized successfully and is accepting connections.
 
 ---
 
+# Supported Authenticator Applications
+
+PrivacyIDEA supports standard TOTP applications, including:
+
+- Google Authenticator
+- Microsoft Authenticator
+- FreeOTP
+- Aegis Authenticator
+- Authy (where supported)
+
+---
+
 # Installation Complete
 
-The base infrastructure is now operational.
+The infrastructure is now operational.
 
 Continue with:
 
-- Configuration of PrivacyIDEA
+- PrivacyIDEA configuration
 - FreeRADIUS integration
 - MikroTik RADIUS client configuration
 - OpenVPN server configuration
@@ -299,12 +340,12 @@ If any service fails to start:
 
 - Verify Docker is running.
 - Check container logs.
-- Validate `.env` configuration.
+- Validate the `.env` configuration.
 - Confirm firewall rules.
 - Verify DNS resolution.
-- Ensure server time is synchronized.
+- Ensure system time is synchronized.
 
-Additional troubleshooting documentation is available in:
+For additional troubleshooting guidance, see:
 
 ```
 troubleshooting.md
@@ -314,25 +355,36 @@ troubleshooting.md
 
 # Security Recommendations
 
-For production environments always:
+For production deployments, always:
 
 - Replace all default passwords.
 - Generate unique secret keys.
-- Restrict RADIUS access.
-- Enable HTTPS certificates.
-- Backup the database regularly.
+- Use strong RADIUS shared secrets.
+- Restrict UDP ports 1812 and 1813.
+- Enable HTTPS using a reverse proxy.
+- Protect configuration backups.
+- Backup the MariaDB database regularly.
 - Monitor authentication logs.
 - Keep Docker images updated.
 - Apply operating system security updates.
+- Test disaster recovery procedures.
 
 ---
 
-# Next Step
+# Next Steps
 
-Proceed to:
+After the installation is complete:
+
+1. Configure PrivacyIDEA.
+2. Configure FreeRADIUS.
+3. Configure MikroTik RouterOS.
+4. Enroll TOTP tokens.
+5. Test OpenVPN authentication.
+6. Enable HTTPS.
+7. Configure monitoring and backups.
+
+Continue with:
 
 ```
 configuration.md
 ```
-
-to configure the complete authentication workflow between MikroTik RouterOS, FreeRADIUS and PrivacyIDEA.
