@@ -1,163 +1,180 @@
 # Frequently Asked Questions (FAQ)
 
-> Frequently asked questions about deploying PrivacyIDEA, FreeRADIUS and MikroTik OpenVPN with Docker Compose.
+> Frequently asked questions about deploying PrivacyIDEA, FreeRADIUS and MikroTik OpenVPN using Docker Compose.
 
 ---
 
-# General Questions
+# General
 
-## What is PrivacyIDEA?
+## What problem does this project solve?
 
-PrivacyIDEA is an open-source Multi-Factor Authentication (MFA) server that supports a wide range of authentication methods including:
+MikroTik RouterOS supports RADIUS authentication for OpenVPN but does not provide native support for Time-based One-Time Password (TOTP) authentication.
 
-- TOTP
-- HOTP
-- WebAuthn
-- FIDO2
-- YubiKey
-- SMS
-- Email OTP
+This project bridges that limitation by integrating:
 
-It provides centralized authentication management for enterprise environments.
+- PrivacyIDEA
+- FreeRADIUS
+- Docker Compose
+- MikroTik RouterOS
 
----
-
-## Why is FreeRADIUS required?
-
-MikroTik RouterOS supports RADIUS authentication but cannot communicate directly with PrivacyIDEA.
-
-FreeRADIUS acts as the authentication bridge between MikroTik RouterOS and PrivacyIDEA.
+to provide enterprise-grade Multi-Factor Authentication (MFA).
 
 ---
 
-## Why not use MikroTik's native authentication?
-
-RouterOS supports:
-
-- Local users
-- RADIUS
-- Certificates
-
-However, it does not natively support TOTP-based Multi-Factor Authentication for OpenVPN.
-
-This repository addresses that limitation.
-
----
-
-## Can this be deployed in production?
+## Is this a production-ready solution?
 
 Yes.
 
-The architecture is suitable for production environments provided that:
+The architecture is suitable for production deployments when:
 
 - HTTPS is enabled.
-- Strong passwords are used.
-- Backups are configured.
+- Strong secrets are used.
 - Security recommendations are followed.
-- Monitoring is implemented.
+- Monitoring is configured.
+- Regular backups are performed.
 
 ---
 
-# Docker
+## Is this an official MikroTik solution?
 
-## Why Docker?
+No.
 
-Docker simplifies deployment by:
-
-- Isolating services
-- Simplifying updates
-- Improving portability
-- Reducing configuration errors
-- Simplifying backups
-
----
-
-## Can I deploy without Docker?
-
-Yes.
-
-However, Docker Compose is recommended because it provides:
-
-- Consistent deployment
-- Easier maintenance
-- Simpler upgrades
-- Better reproducibility
+This is an independent open-source implementation demonstrating how MikroTik RouterOS can be integrated with PrivacyIDEA through FreeRADIUS.
 
 ---
 
 # MikroTik
 
+## Does MikroTik support TOTP natively?
+
+No.
+
+RouterOS currently supports:
+
+- Local authentication
+- RADIUS
+- Certificates
+
+Native TOTP authentication for OpenVPN is not available.
+
+---
+
+## Why is FreeRADIUS required?
+
+PrivacyIDEA is not a RADIUS server.
+
+FreeRADIUS receives authentication requests from MikroTik and forwards them to PrivacyIDEA.
+
+---
+
 ## Which RouterOS versions are supported?
 
 The project has been tested with RouterOS 7.x.
 
-Always verify compatibility before deploying into production.
+Earlier versions may work but have not been validated.
 
 ---
 
-## Does this work with OpenVPN?
+## Can multiple MikroTik routers use the same PrivacyIDEA server?
 
 Yes.
 
-The solution was specifically designed for MikroTik OpenVPN authentication.
+Multiple routers can authenticate against a single FreeRADIUS and PrivacyIDEA instance.
 
----
-
-## Can it be used with other VPN protocols?
-
-Potentially yes.
-
-Any VPN solution supporting RADIUS authentication may integrate with PrivacyIDEA through FreeRADIUS.
+Each router must be configured as a trusted RADIUS client.
 
 ---
 
 # PrivacyIDEA
 
-## Which authenticators are supported?
+## What is PrivacyIDEA?
 
-PrivacyIDEA supports:
+PrivacyIDEA is an open-source Multi-Factor Authentication platform supporting:
 
-- Google Authenticator
-- Microsoft Authenticator
-- FreeOTP
-- Aegis
-- Authy
-- Hardware tokens
+- TOTP
+- HOTP
 - FIDO2
 - WebAuthn
+- YubiKey
+- SMS
+- Email OTP
 
 ---
 
-## Can Active Directory users be used?
+## Can I use Active Directory?
 
 Yes.
 
-PrivacyIDEA supports multiple user sources including:
+PrivacyIDEA supports:
 
-- LDAP
 - Microsoft Active Directory
+- LDAP
 - SQL
-- Local users
+- Local Users
+
+---
+
+## Which authenticator applications are supported?
+
+Any RFC-compliant TOTP application.
+
+Examples:
+
+- Google Authenticator
+- Microsoft Authenticator
+- Aegis Authenticator
+- FreeOTP
+- Authy
+
+---
+
+## Can users have multiple tokens?
+
+Yes.
+
+PrivacyIDEA supports assigning multiple authentication tokens to a single user.
 
 ---
 
 # FreeRADIUS
 
-## Are user passwords stored inside FreeRADIUS?
+## Does FreeRADIUS store user passwords?
 
 No.
 
-FreeRADIUS only forwards authentication requests.
+FreeRADIUS acts only as an authentication gateway.
 
-PrivacyIDEA performs the actual authentication.
+User authentication is performed entirely by PrivacyIDEA.
 
 ---
 
-## Is RADIUS encrypted?
+## Is RADIUS traffic encrypted?
 
-The communication relies on a shared secret.
+RADIUS authentication uses a shared secret for request validation.
 
-When deployed across untrusted networks, additional protection such as VPN or network segmentation is recommended.
+If authentication traffic traverses untrusted networks, additional protection such as VPN tunnels or dedicated management networks is recommended.
+
+---
+
+# Docker
+
+## Why use Docker Compose?
+
+Docker Compose provides:
+
+- Repeatable deployments
+- Service isolation
+- Easy upgrades
+- Simplified backups
+- Portable infrastructure
+
+---
+
+## Can this project be installed without Docker?
+
+Yes.
+
+However, Docker Compose is recommended because all configuration examples and documentation are based on containerized deployment.
 
 ---
 
@@ -167,53 +184,31 @@ When deployed across untrusted networks, additional protection such as VPN or ne
 
 Yes.
 
-TOTP is an industry-standard authentication mechanism defined by RFC 6238.
-
-It significantly improves security compared to password-only authentication.
+TOTP is defined by RFC 6238 and is one of the most widely adopted Multi-Factor Authentication mechanisms.
 
 ---
 
-## What happens if a user loses their phone?
+## What happens if a user loses their authenticator device?
 
 An administrator can:
 
-- Disable the token
-- Revoke the token
-- Enroll a new token
+- Revoke the existing token.
+- Disable the token.
+- Enroll a replacement token.
 
 ---
-
-## Can multiple tokens be assigned?
-
-Yes.
-
-PrivacyIDEA supports assigning multiple tokens to a single user.
-
----
-
-# Backup
 
 ## What should be backed up?
 
-Recommended backups include:
+Regular backups should include:
 
 - MariaDB
 - Docker Compose files
-- .env
-- Certificates
+- `.env`
+- FreeRADIUS configuration
+- PrivacyIDEA configuration
 - MikroTik configuration
 - Reverse Proxy configuration
-
----
-
-## Is database backup enough?
-
-No.
-
-A complete backup should include both:
-
-- Configuration
-- Database
 
 ---
 
@@ -224,9 +219,9 @@ A complete backup should include both:
 Verify:
 
 - Docker containers
+- MikroTik RADIUS configuration
 - FreeRADIUS logs
 - PrivacyIDEA logs
-- MikroTik configuration
 - Shared Secret
 - System time
 
@@ -234,22 +229,23 @@ Verify:
 
 ## OTP codes are rejected
 
-Verify:
+Check:
 
 - NTP synchronization
-- Time zone
 - Token enrollment
+- System time
+- PrivacyIDEA policy
 
 ---
 
-## Containers restart continuously
+## Containers continuously restart
 
 Review:
 
 ```bash
-docker logs privacyidea
-docker logs freeradius
-docker logs mariadb
+docker compose logs privacyidea
+docker compose logs freeradius
+docker compose logs mariadb
 ```
 
 ---
@@ -263,31 +259,43 @@ docker compose pull
 docker compose up -d
 ```
 
-Always backup the environment before updating.
+Always create a backup before updating.
 
 ---
 
 ## How often should updates be installed?
 
-Recommendations:
+Recommended schedule:
 
-- Security updates immediately.
-- Feature updates after testing.
-- Major upgrades only after validation.
+- Security updates: immediately.
+- Feature updates: after testing.
+- Major upgrades: only after validation.
+
+---
+
+# Documentation
+
+Additional documentation is available in this repository:
+
+- installation.md
+- configuration.md
+- freeradius-integration.md
+- troubleshooting.md
+- security.md
 
 ---
 
 # Support
 
-This repository accompanies the technical documentation published by:
+Project maintained by:
 
 **SARABEL Informatika Kft.**
 
-Website:
+Website
 
 https://sarabelinformatika.hu
 
-GitHub:
+GitHub
 
 https://github.com/sarabelinformatika
 
@@ -295,8 +303,6 @@ https://github.com/sarabelinformatika
 
 # Final Notes
 
-This project demonstrates one practical approach to implementing enterprise-grade Multi-Factor Authentication for MikroTik OpenVPN using PrivacyIDEA and FreeRADIUS.
+This project demonstrates a practical and reproducible approach to implementing enterprise-grade Multi-Factor Authentication for MikroTik OpenVPN using PrivacyIDEA, FreeRADIUS and Docker Compose.
 
-Every production environment is different.
-
-Always validate your deployment before going live.
+Although the solution has been designed using industry best practices, every production environment is different. Always validate your deployment before allowing production users to authenticate.
