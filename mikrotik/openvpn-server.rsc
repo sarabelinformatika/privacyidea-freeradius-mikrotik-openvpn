@@ -17,12 +17,3 @@ add \
     cipher=aes256-cbc \
     default-profile=ovpn_profile
 
-add \
-    name=openvpn_udp \
-    disabled=no \
-    protocol=udp \
-    port=1195 \
-    certificate=server \
-    auth=sha256,sha512 \
-    cipher=aes256-cbc \
-    default-profile=ovpn_profile
