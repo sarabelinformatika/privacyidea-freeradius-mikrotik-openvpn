@@ -163,6 +163,30 @@ Before deploying into production:
 
 ---
 
+# Related Blog Article
+
+This GitHub repository accompanies a detailed technical article published on the **SARABEL Informatika** website.
+
+The article explains not only how the solution works, but also **why Multi-Factor Authentication (MFA) has become essential for securing MikroTik OpenVPN environments**.
+
+## A jelszó önmagában már nem elég – így teheti biztonságossá MikroTik VPN kapcsolatát kétfaktoros hitelesítéssel (MFA)
+
+The article covers:
+
+- Why password-only VPN authentication is no longer sufficient
+- Security risks of traditional VPN authentication
+- How PrivacyIDEA integrates with MikroTik OpenVPN
+- FreeRADIUS authentication workflow
+- Docker Compose deployment
+- Enterprise security considerations
+- Practical implementation recommendations
+
+Read the complete article:
+
+**[https://sarabelinformatika.hu/blog/mikrotik-vpn-biztonsag-ketfaktoros-hitelesites-mfa](https://sarabelinformatika.hu/blog/a-jelszo-onmagaban-mar-nem-eleg-igy-teheti-biztonsagossa-mikrotik-vpn-kapcsolatat-ketfaktoros-hitelesitessel-mfa)**
+
+---
+
 # Technologies
 
 - MikroTik RouterOS
