@@ -206,14 +206,21 @@ Read the complete article:
 
 # Related Resources
 
-- SARABEL Informatika Blog:
-  https://sarabelinformatika.hu
+### Website
 
-- GitHub:
-  https://github.com/sarabelinformatika
+https://sarabelinformatika.hu
 
-- LinkedIn:
-  https://www.linkedin.com/in/sarabel-informatika-kft-8041003a1/
+### LinkedIn
+
+https://www.linkedin.com/in/sarabel-informatika-kft-8041003a1/
+
+### GitHub
+
+https://github.com/sarabelinformatika
+
+### Google
+
+https://share.google/WyzYNCwweENM06I3c
 
 ---
 
