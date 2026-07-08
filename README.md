@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./images/privacyidea-freeradius-mikrotik-openvpn.jpg" alt="SARABEL Informatika Banner" width="100%">
+</p>
+
 # PrivacyIDEA + FreeRADIUS + MikroTik OpenVPN
 
 > Enterprise Multi-Factor Authentication (MFA) for MikroTik OpenVPN using PrivacyIDEA, FreeRADIUS and Docker Compose.
