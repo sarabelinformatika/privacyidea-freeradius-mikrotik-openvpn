@@ -216,7 +216,7 @@ https://sarabelinformatika.hu
 
 ### LinkedIn
 
-https://www.linkedin.com/in/sarabel-informatika-kft-8041003a1/
+https://www.linkedin.com/company/sarabel-informatika-kft
 
 ### GitHub
 
